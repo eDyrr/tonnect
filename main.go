@@ -72,7 +72,7 @@ func main() {
 		json.NewEncoder(w).Encode(o)
 	})
 
-	client, err := tonapi.NewClient("https://testnet.tonapi.io", authSource{token: "AFZ4OBY7RPHW63QAAAACMILEQLPY7Z6U6YGEXHTQU6SLX2CNTTAPGO4SPJNVYFKXLXHQJ5Q"})
+	client, err := tonapi.NewClient("https://testnet.tonapi.io", authSource{token: os.Getenv("TONAPI_KEY")})
 	if err != nil {
 		log.Fatal(err)
 	}
