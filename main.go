@@ -9,7 +9,6 @@ import (
 	"time"
 
 	tonnect "github.com/edyrr/tonnect/orders"
-	"github.com/joho/godotenv"
 	"github.com/tonkeeper/tonapi-go"
 )
 
@@ -27,18 +26,26 @@ func (a authSource) BearerAuth(ctx context.Context, operationName tonapi.Operati
 }
 
 func main() {
-	// store := *tonnect.NewStore() old
-	if err := godotenv.Load(); err != nil {
-		log.Println("no .env file found")
+	var store tonnect.Store
+	var err error
+	storeType := os.Getenv("STORE")
+	if storeType == "" {
+		storeType = "memory"
 	}
-	connString := os.Getenv("DATABASE_URL")
+	switch storeType {
+	case "postgres":
+		store, err = tonnect.NewPgStore(os.Getenv("DATABASE_URL"))
+		if err != nil {
+			log.Fatal(err)
+		}
+	case "memory":
+		store = tonnect.NewMemStore()
+	default:
+		log.Fatalf("unknown STORE %q (use memory or postgres)", storeType)
+	}
+	log.Printf("using store %s", storeType)
 
-	store, err := tonnect.NewPgStore(connString)
-	if err != nil {
-		log.Fatal(err)
-	}
 	mux := http.NewServeMux()
-	// client.GetBlockchaininAccountTransactions()
 
 	mux.HandleFunc("POST /orders", func(w http.ResponseWriter, r *http.Request) {
 		var req createOrderRequest
@@ -72,7 +79,12 @@ func main() {
 		json.NewEncoder(w).Encode(o)
 	})
 
-	client, err := tonapi.NewClient("https://testnet.tonapi.io", authSource{token: os.Getenv("TONAPI_KEY")})
+	apiURL := os.Getenv("TONAPI_URL")
+	if apiURL == "" {
+		apiURL = "https://testnet.tonapi.io"
+	}
+
+	client, err := tonapi.NewClient(apiURL, authSource{token: os.Getenv("TONAPI_KEY")})
 	if err != nil {
 		log.Fatal(err)
 	}

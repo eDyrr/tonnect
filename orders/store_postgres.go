@@ -4,8 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 
+	_ "embed"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+//go:embed schema.sql
+var schema string
 
 type PgStore struct {
 	db *sql.DB
@@ -18,6 +23,9 @@ func NewPgStore(connString string) (*PgStore, error) {
 	}
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping failed: %w", err)
+	}
+	if _, err := db.Exec(schema); err != nil {
+		return nil, fmt.Errorf("schema: %w", err)
 	}
 	return &PgStore{db: db}, nil
 }
@@ -68,9 +76,22 @@ func (s *PgStore) Pending() ([]*order, error) {
 }
 
 func (s *PgStore) MarkPaid(id string, txHash string) error {
-	_, err := s.db.Exec(
+	res, err := s.db.Exec(
 		`update orders set status = $1, paid_tx_hash = $2, paid_at = now() where id = $3 and status != $1`,
 		Paid, txHash, id,
 	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		// nothing updated: missing ID, or already paid
+		if _, err := s.Get(id); err != nil {
+			return err // missing "not found"
+		}
+	}
 	return err
 }

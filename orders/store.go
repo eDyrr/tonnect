@@ -5,22 +5,35 @@ import (
 	"sync"
 )
 
-type Store struct {
+type Store interface {
+	Save(o *order) error
+	Get(id string) (*order, error)
+	Pending() ([]*order, error)
+	MarkPaid(id string, txHash string) error
+}
+
+type MemStore struct {
 	mu   sync.Mutex
 	data map[string]*order
 }
 
-func NewStore() *Store {
-	return &Store{data: make(map[string]*order)}
+var (
+	_ Store = (*MemStore)(nil)
+	_ Store = (*PgStore)(nil)
+)
+
+func NewMemStore() *MemStore {
+	return &MemStore{data: make(map[string]*order)}
 }
 
-func (s *Store) Save(o *order) {
+func (s *MemStore) Save(o *order) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.data[o.ID] = o
+	return nil
 }
 
-func (s *Store) Get(id string) (*order, error) {
+func (s *MemStore) Get(id string) (*order, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	o, ok := s.data[id]
@@ -30,7 +43,7 @@ func (s *Store) Get(id string) (*order, error) {
 	return o, nil
 }
 
-func (s *Store) Pending() ([]*order, error) {
+func (s *MemStore) Pending() ([]*order, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []*order
@@ -42,7 +55,7 @@ func (s *Store) Pending() ([]*order, error) {
 	return out, nil
 }
 
-func (s *Store) MarkPaid(id string, txHash string) error {
+func (s *MemStore) MarkPaid(id string, txHash string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	o, ok := s.data[id]
@@ -53,5 +66,6 @@ func (s *Store) MarkPaid(id string, txHash string) error {
 		return nil
 	}
 	o.Status = Paid
+	o.PaidTxHash = txHash
 	return nil
 }

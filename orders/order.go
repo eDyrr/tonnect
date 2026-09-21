@@ -10,11 +10,12 @@ const (
 )
 
 type order struct {
-	ID        string
-	Status    status
-	Reference string
-	Recipient string
-	Amount    int64
+	ID         string
+	Status     status
+	Reference  string
+	Recipient  string
+	Amount     int64
+	PaidTxHash string
 }
 
 func New(amount int64, recipient string) *order {

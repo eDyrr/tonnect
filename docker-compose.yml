@@ -1,0 +1,28 @@
+services:
+  tonnect:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      STORE: postgres
+      DATABASE_URL: postgres://tonnect:tonnect@db:5432/tonnect?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tonnect
+      POSTGRES_PASSWORD: tonnect
+      POSTGRES_DB: tonnect
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tonnect"]
+      interval: 3s
+      retries: 10
+
+volumes:
+  pgdata:
