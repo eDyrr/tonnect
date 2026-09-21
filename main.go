@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -25,7 +26,23 @@ func (a authSource) BearerAuth(ctx context.Context, operationName tonapi.Operati
 	return tonapi.BearerAuth{Token: a.token}, nil
 }
 
+func requireKey(key string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		got := r.Header.Get("Authorization")
+		want := "Bearer " + key
+		if subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func main() {
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		log.Fatal("API_KEY is required")
+	}
 	var store tonnect.Store
 	var err error
 	storeType := os.Getenv("STORE")
@@ -47,7 +64,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /orders", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /orders", requireKey(apiKey, func(w http.ResponseWriter, r *http.Request) {
 		var req createOrderRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -66,7 +83,7 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(o)
-	})
+	}))
 
 	mux.HandleFunc("GET /orders/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
