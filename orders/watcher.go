@@ -16,21 +16,22 @@ type ChainTx struct {
 }
 
 type Watcher struct {
-	store      OrderStore
+	store      Store
 	interval   time.Duration
 	checkChain func(address string) ([]ChainTx, error)
+	hook       *Webhook
 }
 
 type textComment struct {
 	Text string `json:"text"`
 }
 
-type OrderStore interface {
-	Save(o *order) error
-	Get(id string) (*order, error)
-	Pending() ([]*order, error)
-	MarkPaid(id string, txHash string) error
-}
+// type OrderStore interface {
+// 	Save(o *order) error
+// 	Get(id string) (*order, error)
+// 	Pending() ([]*order, error)
+// 	MarkPaid(id string, txHash string) error
+// }
 
 func CheckChain(client *tonapi.Client, address string) ([]ChainTx, error) {
 	resp, err := client.GetBlockchainAccountTransactions(context.Background(), tonapi.GetBlockchainAccountTransactionsParams{
@@ -64,8 +65,8 @@ func CheckChain(client *tonapi.Client, address string) ([]ChainTx, error) {
 	return out, nil
 }
 
-func NewWatcher(store OrderStore, interval time.Duration, checkChain func(address string) ([]ChainTx, error)) *Watcher {
-	return &Watcher{store: store, interval: interval, checkChain: checkChain}
+func NewWatcher(store Store, interval time.Duration, checkChain func(address string) ([]ChainTx, error), hook *Webhook) *Watcher {
+	return &Watcher{store: store, interval: interval, checkChain: checkChain, hook: hook}
 }
 
 func (w *Watcher) Run(stop <-chan struct{}) {
@@ -95,8 +96,13 @@ func (w *Watcher) tick() {
 		}
 		for _, tx := range txs {
 			if tx.Comment == o.Reference && tx.AmountNano >= o.Amount {
-				w.store.MarkPaid(o.ID, tx.Hash)
+				if err := w.store.MarkPaid(o.ID, tx.Hash); err != nil {
+					log.Printf("watcher: mark paid %s: %v", o.ID, err)
+					break
+				}
 				log.Printf("watcher: order %s paid (tx %s)", o.ID, tx.Hash)
+				w.hook.Paid(o, tx.Hash)
+				break
 			}
 		}
 	}

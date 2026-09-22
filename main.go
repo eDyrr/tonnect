@@ -105,9 +105,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	var hook *tonnect.Webhook
+	if u := os.Getenv("WEBHOOK_URL"); u != "" {
+		secret := os.Getenv("WEBHOOK_SECRET")
+		if secret == "" {
+			log.Fatal("WEBHOOK_SECRET is required when WEBHOOK_URL is set")
+		}
+		hook = tonnect.NewWebhook(u, secret)
+	}
+
 	watcher := tonnect.NewWatcher(store, 5*time.Second, func(address string) ([]tonnect.ChainTx, error) {
 		return tonnect.CheckChain(client, address)
-	})
+	}, hook)
 	stop := make(chan struct{})
 	go watcher.Run(stop)
 	defer close(stop)
