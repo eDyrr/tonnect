@@ -15,7 +15,7 @@ type order struct {
 	Reference  string `json:"reference"`
 	Recipient  string `json:"recipient"`
 	Amount     int64  `json:"amount"`
-	PaidTxHash string `json:"paid_tx_hash, omitempty"`
+	PaidTxHash string `json:"paid_tx_hash,omitempty"`
 }
 
 func New(amount int64, recipient string) *order {
