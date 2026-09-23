@@ -95,3 +95,23 @@ func (s *PgStore) MarkPaid(id string, txHash string) error {
 	}
 	return err
 }
+
+func (s *PgStore) MarkExpired(id string) error {
+	res, err := s.db.Exec(
+		`update orders set status = $1 where id = $2 and status = $3`,
+		Expired, id, Created,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		if _, err := s.Get(id); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -89,6 +89,15 @@ func (w *Watcher) tick() {
 		return
 	}
 	for _, o := range pending {
+		if o.Status == Created && time.Now().After(o.ExpiredAt) {
+			if err := w.store.MarkExpired(o.ID); err != nil {
+				log.Printf("watcher: mark expired %s: %v", o.ID, err)
+			} else {
+				log.Printf("watcher: order %s expired", o.ID)
+			}
+			continue // skip chain check, move to next order
+		}
+
 		txs, err := w.checkChain(o.Recipient)
 		if err != nil {
 			log.Printf("watcher: chain check failed: %v", err)

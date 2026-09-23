@@ -10,6 +10,7 @@ type Store interface {
 	Get(id string) (*order, error)
 	Pending() ([]*order, error)
 	MarkPaid(id string, txHash string) error
+	MarkExpired(id string) error
 }
 
 type MemStore struct {
@@ -67,5 +68,18 @@ func (s *MemStore) MarkPaid(id string, txHash string) error {
 	}
 	o.Status = Paid
 	o.PaidTxHash = txHash
+	return nil
+}
+
+func (s *MemStore) MarkExpired(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	o, ok := s.data[id]
+	if !ok {
+		return fmt.Errorf("order %s not found", id)
+	}
+	if o.Status == Created {
+		o.Status = Expired
+	}
 	return nil
 }
