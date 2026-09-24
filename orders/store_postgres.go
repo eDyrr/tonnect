@@ -32,9 +32,9 @@ func NewPgStore(connString string) (*PgStore, error) {
 
 func (s *PgStore) Save(o *order) error {
 	_, err := s.db.Exec(
-		`insert into orders (id, status, reference, recipient, amount)
-		 values ($1, $2, $3, $4, $5)`,
-		o.ID, o.Status, o.Reference, o.Recipient, o.Amount,
+		`insert into orders (id, status, reference, recipient, amount, expires_at)
+		 values ($1, $2, $3, $4, $5, $6)`,
+		o.ID, o.Status, o.Reference, o.Recipient, o.Amount, o.ExpiresAt,
 	)
 	return err
 }
@@ -42,9 +42,9 @@ func (s *PgStore) Save(o *order) error {
 func (s *PgStore) Get(id string) (*order, error) {
 	var o order
 	err := s.db.QueryRow(
-		`select id, status, reference, recipient, amount from orders where id = $1`,
+		`select id, status, reference, recipient, amount, expires_at from orders where id = $1`,
 		id,
-	).Scan(&o.ID, &o.Status, &o.Reference, &o.Recipient, &o.Amount)
+	).Scan(&o.ID, &o.Status, &o.Reference, &o.Recipient, &o.Amount, &o.ExpiresAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("order %s not found ", id)
 	}
@@ -56,7 +56,7 @@ func (s *PgStore) Get(id string) (*order, error) {
 
 func (s *PgStore) Pending() ([]*order, error) {
 	rows, err := s.db.Query(
-		`select id, status, reference, recipient, amount from orders where status = $1`,
+		`select id, status, reference, recipient, amount, expires_at from orders where status = $1`,
 		Created,
 	)
 	if err != nil {
@@ -67,7 +67,7 @@ func (s *PgStore) Pending() ([]*order, error) {
 	var out []*order
 	for rows.Next() {
 		var o order
-		if err := rows.Scan(&o.ID, &o.Status, &o.Reference, &o.Recipient, &o.Amount); err != nil {
+		if err := rows.Scan(&o.ID, &o.Status, &o.Reference, &o.Recipient, &o.Amount, &o.ExpiresAt); err != nil {
 			return nil, err
 		}
 		out = append(out, &o)

@@ -21,7 +21,7 @@ type order struct {
 	Recipient  string    `json:"recipient"`
 	Amount     int64     `json:"amount"`
 	PaidTxHash string    `json:"paid_tx_hash,omitempty"`
-	ExpiredAt  time.Time `json:"expires_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
 }
 
 func New(amount int64, recipient string) *order {
@@ -31,5 +31,6 @@ func New(amount int64, recipient string) *order {
 	o.Status = Created
 	o.Amount = amount
 	o.Recipient = recipient
+	o.ExpiresAt = time.Now().Add(30 * time.Minute)
 	return &o
 }

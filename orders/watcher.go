@@ -26,13 +26,6 @@ type textComment struct {
 	Text string `json:"text"`
 }
 
-// type OrderStore interface {
-// 	Save(o *order) error
-// 	Get(id string) (*order, error)
-// 	Pending() ([]*order, error)
-// 	MarkPaid(id string, txHash string) error
-// }
-
 func CheckChain(client *tonapi.Client, address string) ([]ChainTx, error) {
 	resp, err := client.GetBlockchainAccountTransactions(context.Background(), tonapi.GetBlockchainAccountTransactionsParams{
 		AccountID: address,
@@ -89,7 +82,7 @@ func (w *Watcher) tick() {
 		return
 	}
 	for _, o := range pending {
-		if o.Status == Created && time.Now().After(o.ExpiredAt) {
+		if o.Status == Created && time.Now().After(o.ExpiresAt) {
 			if err := w.store.MarkExpired(o.ID); err != nil {
 				log.Printf("watcher: mark expired %s: %v", o.ID, err)
 			} else {
