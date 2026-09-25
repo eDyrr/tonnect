@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: tonnect
+  description: Self-hosted REST API for accepting TON payments via TON Connect.
+  version: "0.1.0"
+servers:
+  - url: http://localhost:8080
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: http
+      scheme: bearer
+  schemas:
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [created, paid, expired] }
+        reference: { type: string, format: uuid }
+        recipient: { type: string }
+        amount: { type: integer, format: int64, description: "Amount in nanoTON" }
+        paid_tx_hash: { type: string }
+        expires_at: { type: string, format: date-time }
+    CreateOrderRequest:
+      type: object
+      required: [amount, recipient]
+      properties:
+        amount: { type: integer, format: int64, description: "Amount in nanoTON" }
+        recipient: { type: string, description: "TON wallet address to receive payment" }
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200": { description: OK }
+        "503": { description: Unhealthy (e.g. database unreachable) }
+
+  /orders:
+    post:
+      summary: Create a payment order
+      security:
+        - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrderRequest" }
+      responses:
+        "200":
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "400":
+          description: Missing or invalid request body (amount and recipient are required, or body isn't valid JSON)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "amount and recipient are required"
+        "401":
+          description: Missing or invalid API key
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /orders/{id}:
+    get:
+      summary: Get order status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Order found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "404":
+          description: Order not found
